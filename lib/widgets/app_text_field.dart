@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../theme/app_theme.dart';
 
@@ -15,6 +16,11 @@ class AppTextField extends StatefulWidget {
     this.keyboardType,
     this.maxLines = 1,
     this.minLines,
+    this.focusNode,
+    this.textInputAction,
+    this.onSubmitted,
+    this.inputFormatters,
+    this.enabled = true,
   });
 
   final String label;
@@ -25,6 +31,14 @@ class AppTextField extends StatefulWidget {
   final TextInputType? keyboardType;
   final int maxLines;
   final int? minLines;
+  final FocusNode? focusNode;
+  final TextInputAction? textInputAction;
+  final ValueChanged<String>? onSubmitted;
+  final List<TextInputFormatter>? inputFormatters;
+
+  /// Read-only fields (e.g. an email the API will not let you change) are
+  /// dimmed and skipped by focus traversal.
+  final bool enabled;
 
   @override
   State<AppTextField> createState() => _AppTextFieldState();
@@ -36,6 +50,7 @@ class _AppTextFieldState extends State<AppTextField> {
   @override
   Widget build(BuildContext context) {
     final hasError = widget.errorText != null && widget.errorText!.isNotEmpty;
+    final isSingleLine = widget.obscureText || widget.maxLines == 1;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -57,18 +72,36 @@ class _AppTextFieldState extends State<AppTextField> {
           alignment: Alignment.centerLeft,
           child: TextField(
             controller: widget.controller,
+            focusNode: widget.focusNode,
             obscureText: _obscured,
             keyboardType: widget.keyboardType,
+            textInputAction: widget.textInputAction,
+            onSubmitted: widget.onSubmitted,
+            inputFormatters: widget.inputFormatters,
+            enabled: widget.enabled,
             maxLines: widget.obscureText ? 1 : widget.maxLines,
             minLines: widget.minLines,
-            style: const TextStyle(fontSize: 15, color: AppColors.textPrimary),
+            // Without this the text hugs the top of a single-line field: the
+            // password field's suffix icon makes the decorator taller than the
+            // text row, and `isDense` then aligns the text to the top of it.
+            textAlignVertical: isSingleLine ? TextAlignVertical.center : TextAlignVertical.top,
+            style: TextStyle(
+              fontSize: 15,
+              color: widget.enabled ? AppColors.textPrimary : AppColors.textSecondary,
+            ),
             decoration: InputDecoration(
               isDense: true,
               border: InputBorder.none,
               hintText: widget.hint,
               hintStyle: const TextStyle(color: AppColors.textSecondary),
+              // Keeps the eye button from imposing its 48dp default and
+              // stretching the row taller than the 54dp the mockups call for.
+              suffixIconConstraints: const BoxConstraints(minWidth: 36, minHeight: 36),
               suffixIcon: widget.obscureText
                   ? IconButton(
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                      visualDensity: VisualDensity.compact,
                       icon: Icon(
                         _obscured ? Icons.visibility_outlined : Icons.visibility_off_outlined,
                         color: AppColors.textSecondary,

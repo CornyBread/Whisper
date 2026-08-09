@@ -1,27 +1,22 @@
 import 'package:flutter/material.dart';
 
-import '../models/chat.dart';
+import '../core/date_format.dart';
+import '../models/friend.dart';
 import '../theme/app_theme.dart';
-import 'user_avatar.dart';
+import 'remote_avatar.dart';
 
-/// A single row in the chats list, matching the "unread / read / sent by me /
-/// voice / group" states from the mockup spec.
+/// A single row in the chats list: a friend plus a preview of the last message.
 class ChatListTile extends StatelessWidget {
-  const ChatListTile({super.key, required this.chat, required this.onTap});
+  const ChatListTile({super.key, required this.friend, required this.onTap});
 
-  final Chat chat;
+  final Friend friend;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final unread = chat.isUnread;
-
-    String preview = chat.lastMessage;
-    if (chat.kind == ChatPreviewKind.voice) {
-      preview = '🎧 Mensaje de voz · 0:14';
-    } else if (chat.kind == ChatPreviewKind.group) {
-      preview = chat.lastMessage;
-    }
+    final last = friend.lastMessage;
+    final unread = friend.unreadCount > 0;
+    final showReceipt = last?.sentByMe == true && last?.read == true;
 
     return InkWell(
       onTap: onTap,
@@ -34,7 +29,11 @@ class ChatListTile extends StatelessWidget {
         ),
         child: Row(
           children: [
-            UserAvatar(user: chat.otherUser, size: 52),
+            RemoteAvatar(
+              initials: friend.initials,
+              imageUrl: friend.absoluteProfilePictureUrl,
+              size: 52,
+            ),
             const SizedBox(width: 13),
             Expanded(
               child: Column(
@@ -44,7 +43,7 @@ class ChatListTile extends StatelessWidget {
                     children: [
                       Expanded(
                         child: Text(
-                          chat.otherUser.name,
+                          friend.username,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
@@ -53,31 +52,33 @@ class ChatListTile extends StatelessWidget {
                           ),
                         ),
                       ),
-                      Text(
-                        chat.time,
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: unread ? AppColors.lavender : AppColors.textSecondary,
+                      if (last?.sentAt != null)
+                        Text(
+                          formatChatTimestamp(last!.sentAt!),
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: unread ? AppColors.lavender : AppColors.textSecondary,
+                          ),
                         ),
-                      ),
                     ],
                   ),
                   const SizedBox(height: 3),
                   Row(
                     children: [
-                      if (chat.lastMessageSentByMe && chat.lastMessageRead) ...[
+                      if (showReceipt) ...[
                         const Icon(Icons.done_all, size: 15, color: AppColors.lavender),
                         const SizedBox(width: 5),
                       ],
                       Expanded(
                         child: Text(
-                          preview,
+                          last?.content ?? 'Aún no se han enviado mensajes',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: unread ? FontWeight.w600 : FontWeight.w500,
+                            fontStyle: last == null ? FontStyle.italic : FontStyle.normal,
                             color: unread ? const Color(0xFFC9CBD6) : AppColors.textSecondary,
                           ),
                         ),
@@ -90,7 +91,7 @@ class ChatListTile extends StatelessWidget {
                           decoration: const BoxDecoration(color: AppColors.lavender, shape: BoxShape.circle),
                           alignment: Alignment.center,
                           child: Text(
-                            '${chat.unreadCount}',
+                            '${friend.unreadCount}',
                             style: const TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w800,
